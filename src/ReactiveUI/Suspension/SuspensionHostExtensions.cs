@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 .NET Foundation and Contributors. All rights reserved.
+﻿// Copyright (c) 2020 .NET Foundation and Contributors. All rights reserved.
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
@@ -24,8 +24,9 @@ namespace ReactiveUI
         public static IObservable<T> ObserveAppState<T>(this ISuspensionHost item)
             where T : class
         {
-            return item.WhenAny(x => x.AppState, x => (T)x)
-                        .Where(x => x != null);
+            return item.WhenAny(suspensionHost => suspensionHost.AppState, observedChange => observedChange.Value)
+                        .Where(x => x != null)
+                        .Cast<T>();
         }
 
         /// <summary>
@@ -41,12 +42,7 @@ namespace ReactiveUI
                 throw new ArgumentNullException(nameof(item));
             }
 
-            if (item.AppState == null)
-            {
-                throw new NullReferenceException(nameof(item.AppState));
-            }
-
-            return (T)item.AppState;
+            return (T)item.AppState!;
         }
 
         /// <summary>
@@ -63,11 +59,6 @@ namespace ReactiveUI
                 throw new ArgumentNullException(nameof(item));
             }
 
-            if (item.AppState == null)
-            {
-                throw new NullReferenceException(nameof(item.AppState));
-            }
-
             var ret = new CompositeDisposable();
             driver ??= Locator.Current.GetService<ISuspensionDriver>();
 
@@ -77,7 +68,7 @@ namespace ReactiveUI
                          .Subscribe(_ => item.Log().Info("Invalidated app state")));
 
             ret.Add(item.ShouldPersistState
-                         .SelectMany(x => driver.SaveState(item.AppState).Finally(x.Dispose))
+                         .SelectMany(x => driver.SaveState(item.AppState!).Finally(x.Dispose))
                          .LoggedCatch(item, Observables.Unit, "Tried to persist app state")
                          .Subscribe(_ => item.Log().Info("Persisted application state")));
 
